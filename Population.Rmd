@@ -1,0 +1,324 @@
+---
+title: "CUTE"
+author: " Surya Remanan"
+date: "24 October 2018"
+output: html_document
+---
+## The Aim of this project is to predict whether the individual belongs to low income group or high income in the given Data of population. 
+* To start this problem the world data set
+```{r setup, include=FALSE }
+rm(list = ls(all=TRUE))
+```
+## Null Hypothesis of the problem statement
+
+### H0:??i=0, where ??i represents the population coefficient on the parameters (including interaction terms) of the logistic regression modeling log(odds) of Vote as a function of log contribution and party.
+
+*The Individual falling in Higher Income or Low Income is indepnedent of follwing facots listed below
+age,working_sector,financial_weight,	qualification,	years_of_education,	tax_paid,	loan_taken,	marital_status,occupation,relationship,	ethnicity,	gender,	gain,	loss,	working_hours,	country	
+
+```{r echo=FALSE}
+library("maps")
+library("ggplot2")
+
+map.world <- map_data(map="world")
+
+ggh0 <- ggplot()
+ggh0 <- ggh0 + theme(legend.position="none")
+ggh0 <- ggh0 + geom_map(data=map.world, map=map.world, aes(map_id=region, x=long, y=lat), fill="Green", colour="Red", size=0.5)
+ggh0
+```
+
+### HA: At least one ??i???0 where ??i represents the population coefficient on the parameters (including interaction terms) of the logistic regression modeling log(odds) of Vote as a function of log contribution and party.
+
+*The Individual falling in Higher Income or Low Income is dependent of age,working_sector,	
+financial_weight,	qualification,	years_of_education,	tax_paid,loan_taken,marital_status,occupation,relationship,	ethnicity,	gender,	gain,	loss,	working_hours,	country
+```{r echo=FALSE}
+library("maps")
+library("ggplot2")
+
+map.world <- map_data(map="world")
+
+ggh1 <- ggplot()
+ggh1 <- ggh1 + theme(legend.position="none")
+ggh1 <- ggh1 + geom_map(data=map.world, map=map.world, aes(map_id=region, x=long, y=lat), fill= rainbow(99338), colour="red", size=0.5)
+ggh1
+```
+
+** The Proper working path is set for the file and both train and test data set read
+```{r echo=FALSE}
+setwd=getwd()
+train_income_data <- read.csv("train_data.csv",header = TRUE)
+test_income_data <- read.csv("test_data.csv",header = TRUE)
+```
+
+
+```{r}
+library(dplyr)
+test_income_data = subset(test_income_data, select = -c(index))
+train_income_data = subset(train_income_data, select = -c(index))
+```
+
+** Data Visualization using Histogram and Bar Plot on Training Data
+
+```{r}
+hist(train_income_data$tax_paid,col =rainbow(18))
+hist(train_income_data$financial_weight,col=rainbow(99))
+hist(train_income_data$years_of_education,col=rainbow(18))
+hist(train_income_data$tax_paid,col=rainbow(99))
+hist(train_income_data$gain,col=rainbow(99))
+hist(train_income_data$loss,col=rainbow(99))
+hist(train_income_data$working_hours,col=rainbow(99))
+```
+
+```{r}
+boxplot(train_income_data$tax_paid,col=rainbow(99))
+boxplot(train_income_data$financial_weight,col=rainbow(99))
+boxplot(train_income_data$years_of_education,col=rainbow(99))
+boxplot(train_income_data$tax_paid,col=rainbow(99))
+boxplot(train_income_data$gain,col=rainbow(99))
+boxplot(train_income_data$loss,col=rainbow(99))
+boxplot(train_income_data$working_hours,col=rainbow(99))
+```
+
+** Data Visualization using Histogram and Bar Plot on Test Data
+```{r}
+hist(test_income_data$tax_paid,col=rainbow(99))
+hist(test_income_data$financial_weight,col=rainbow(99))
+hist(test_income_data$years_of_education,col=rainbow(99))
+hist(test_income_data$tax_paid,col=rainbow(99))
+hist(test_income_data$gain,col=rainbow(99))
+hist(test_income_data$loss,col=rainbow(99))
+hist(test_income_data$working_hours,col=rainbow(99))
+```
+
+```{r}
+boxplot(test_income_data$tax_paid,col=rainbow(99))
+boxplot(test_income_data$financial_weight,col=rainbow(99))
+boxplot(test_income_data$years_of_education,col=rainbow(99),mains= "Years of Education")
+boxplot(test_income_data$tax_paid,color=rainbow(99))
+boxplot(test_income_data$gain,color=rainbow(99))
+boxplot(test_income_data$loss,color=rainbow(99))
+boxplot(test_income_data$working_hours,color=rainbow(99))
+```
+
+
+** To check if there is any inconsistency in the number of columns in train and test data set dim function is used
+```{r echo=FALSE}
+dim(train_income_data)
+dim(test_income_data)
+```
+
+** It provides great information about the structure of some object str function
+```{r echo=FALSE}
+str(train_income_data)
+str(test_income_data)
+```
+** The  short information about train data
+```{r echo=FALSE}
+head(train_income_data)
+```
+
+```{r echo=FALSE}
+tail(train_income_data)
+```
+** The  short information about test data
+```{r echo=FALSE}
+head(test_income_data)
+```
+
+```{r echo=FALSE}
+tail(test_income_data)
+```
+** The summary of train data and test data is 
+```{r echo=FALSE}
+summary(train_income_data)
+summary(test_income_data)
+```
+** The Home loan taken is considered as categorical data
+```{r echo=FALSE}
+train_income_data$loan_taken = as.factor(train_income_data$loan_taken)
+test_income_data$loan_taken = as.factor(test_income_data$loan_taken)
+```
+**Let's find the NA values 
+```{r echo=FALSE}
+library(naniar)
+gg_miss_var(train_income_data)
+gg_miss_var(test_income_data)
+```
+** To find the missing value in each column of train data
+```{r echo=FALSE}
+NAcol <- which(colSums(is.na(train_income_data)) > 0)
+sort(colSums(sapply(train_income_data[NAcol], is.na)), decreasing = TRUE)
+```
+** The missing value in the categorical data is replaced using Central Imputation
+```{r echo=FALSE}
+library (DMwR)
+library(caret)
+train_income_data <- centralImputation(train_income_data)
+test_income_data <- centralImputation(test_income_data)
+```
+
+** To find the missing value in each column of test data
+```{r echo=FALSE}
+sum(is.na(train_income_data))
+sum(is.na(test_income_data))
+```
+
+
+** Making the Target variable as categorical variable and exclude gain and loss since it has huge zero values
+```{r}
+train_income_data[, 'target'] <- as.factor(train_income_data[, 'target'])
+summary(train_income_data$target)
+
+#test_income_data[, 'target'] <- as.factor(test_income_data[, 'target'])
+#summary(test_income_data$target)
+```
+
+** To plot the Table of the countries how much times they are appearing in the data base
+```{r}
+mytable1 <- with(train_income_data, table(country))
+mytable1
+```
+
+** From above data it is clear the countries which has similar economical status  are made in group
+
+```{r}
+train_income_data$country <-gsub("Holand-Netherlands","EU",train_income_data$country)
+train_income_data$country <-gsub("France","EU",train_income_data$country)
+train_income_data$country <-gsub("Germany","EU",train_income_data$country)
+train_income_data$country <-gsub("Portugal","EU",train_income_data$country)
+train_income_data$country <-gsub("Greece","EU",train_income_data$country)
+train_income_data$country <-gsub("Italy","EU",train_income_data$country)
+train_income_data$country <-gsub("Ireland","EU",train_income_data$country)
+train_income_data$country <-gsub("Poland","EU",train_income_data$country)
+train_income_data$country <-gsub("Hungary","EU",train_income_data$country)
+train_income_data$country = as.factor(train_income_data$country)
+```
+
+** To plot the Table of the countries how much times they are appearing in the data base
+
+```{r}
+mytable2 <- with(test_income_data, table(country))
+mytable2
+```
+
+```{r}
+test_income_data$country <-gsub("Germany","EU",test_income_data$country)
+test_income_data$country <-gsub("Portugal","EU",test_income_data$country)
+test_income_data$country <-gsub("Greece","EU",test_income_data$country)
+test_income_data$country <-gsub("Italy","EU",test_income_data$country)
+test_income_data$country <-gsub("Ireland","EU",test_income_data$country)
+test_income_data$country <-gsub("Poland","EU",test_income_data$country)
+test_income_data$country <-gsub("Hungary","EU",test_income_data$country)
+test_income_data$country = as.factor(test_income_data$country)
+```
+
+** Before split check how the variables are correlated
+
+```{r}
+my_num_data <- train_income_data[,c("tax_paid","financial_weight","years_of_education","gain","loss","working_hours") ]
+corr=cor(my_num_data, use = "complete.obs", method = "pearson")
+library(corrplot)
+corrplot(corr,method="number")
+```
+
+** Data Partion of Training Data
+## Train/Test Split
+
+** Split the data 70/30 into train and test sets, using __Stratified Sampling__ by setting the seed as 
+```{r}
+library(caret)
+set.seed(9999)
+trainrows = createDataPartition(train_income_data$target, p = 0.7, list = FALSE) 
+train_data = train_income_data[trainrows,]
+validate_data = train_income_data[-trainrows,]
+```
+
+** Standardize the data
+
+```{r}
+library(caret)
+library(lattice)
+
+std_obj <- preProcess(x = train_data[, !colnames(train_data) %in% c("target")],
+                      method = c("center", "scale"))
+
+train_std_data <- predict(std_obj, train_data)
+
+validate_std_data <- predict(std_obj, validate_data)
+
+
+std_obj1 <- preProcess(x = test_income_data,
+                      method = c("center", "scale"))
+
+test_std_data <- predict(std_obj1, test_income_data)
+
+
+```
+
+
+** Basic Model using Logistics Regression
+```{r}
+modellog = glm(formula = target~.,data = train_std_data ,family = binomial(link="logit"))
+summary(modellog)
+```
+** Performance on the Training Data set
+```{r}
+library("gplots")
+library("ROCR")
+prob_train <- predict(modellog, type = "response")
+pred_train <- prediction(prob_train, train_std_data$target)
+perf_train <- performance(pred_train, measure="tpr", x.measure="fpr")
+plot(perf_train, col=rainbow(10), colorize=T, print.cutoffs.at=seq(0,1,0.05))
+plot(perf_train, col=rainbow(10), colorize=T, print.cutoffs.at=seq(0,1,0.1))
+plot(perf_train, col=rainbow(10), colorize=T, print.cutoffs.at=seq(0,1,0.2))
+perf_auc <- performance(pred_train, measure="auc")
+auc <- perf_auc@y.values[[1]]
+print(auc)
+```
+** Performance on the Validate Data Set
+```{r}
+library("gplots")
+library("ROCR")
+library("caret")
+prob_valid <- predict(modellog, validate_std_data, type = "response")
+pred_valid <- prediction(prob_valid, validate_std_data$target)
+
+performance_valid = performance(pred_valid, measure = "tpr",x.measure = "fpr")
+plot(performance_valid,col=rainbow(99), colorize = T, print.cutoffs.at=seq(0,1,0.05))
+
+auc.performance1 = performance(pred_valid, measure = "auc")
+auc.performance1@y.values[[1]]
+
+
+predictvalidate = ifelse(prob_valid > 0.25, "1", "0")
+conf.matrix = table(validate_std_data$target, predictvalidate)
+conf.matrix
+
+
+accuracy <- sum(diag(conf.matrix))/sum(conf.matrix)
+
+
+confusionMatrix(as.factor(predictvalidate), validate_std_data$target, positive ="1")
+```
+** Performance on the test Data Set
+```{r}
+library("gplots")
+library("ROCR")
+library("caret")
+
+prob_test <- predict(modellog, test_std_data, type = "response")
+
+predicttest = ifelse(prob_test > 0.25, "1", "0")
+
+```
+
+** Final output on the CSV file 
+```{r}
+pred_test_1 = write.csv(x =predicttest,file = "Grp06.csv" )
+```
+
+
+
+
+
